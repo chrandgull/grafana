@@ -1,4 +1,4 @@
-FROM node:12.18.3-alpine3.12 as js-builder
+FROM s390x/node:12.19.0-buster as js-builder
 
 WORKDIR /usr/src/app/
 
@@ -18,8 +18,7 @@ RUN ./node_modules/.bin/grunt build
 
 FROM golang:1.15.1-alpine3.12 as go-builder
 
-RUN apk add --no-cache gcc g++
-
+RUN apk add --no-cache gcc g++ python3 
 WORKDIR $GOPATH/src/github.com/grafana/grafana
 
 COPY go.mod go.sum ./
@@ -33,8 +32,7 @@ RUN go run build.go build
 
 # Final stage
 FROM alpine:3.12
-
-LABEL maintainer="Grafana team <hello@grafana.com>"
+LABEL maintainer="Chris Gulledge <chrandgull@gmail.com>"
 
 ARG GF_UID="472"
 ARG GF_GID="472"
@@ -50,7 +48,7 @@ ENV PATH="/usr/share/grafana/bin:$PATH" \
 WORKDIR $GF_PATHS_HOME
 
 RUN apk add --no-cache ca-certificates bash tzdata && \
-    apk add --no-cache openssl musl-utils
+    apk add --no-cache openssl musl-utils libc6-compat
 
 COPY conf ./conf
 
@@ -68,7 +66,7 @@ RUN mkdir -p "$GF_PATHS_HOME/.aws" && \
     chown -R grafana:grafana "$GF_PATHS_DATA" "$GF_PATHS_HOME/.aws" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING" && \
     chmod -R 777 "$GF_PATHS_DATA" "$GF_PATHS_HOME/.aws" "$GF_PATHS_LOGS" "$GF_PATHS_PLUGINS" "$GF_PATHS_PROVISIONING"
 
-COPY --from=go-builder /go/src/github.com/grafana/grafana/bin/linux-amd64/grafana-server /go/src/github.com/grafana/grafana/bin/linux-amd64/grafana-cli ./bin/
+COPY /bin ./bin/
 COPY --from=js-builder /usr/src/app/public ./public
 COPY --from=js-builder /usr/src/app/tools ./tools
 
